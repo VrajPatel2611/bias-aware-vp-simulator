@@ -3,56 +3,99 @@
 
 ---
 
-## Day 1 — May 11, 2026
+## Day 1 — May 11, 2026 ✅ COMPLETE
 
 **What I completed today:**
-Read and fully annotated all 4 core reference papers. Created
-references.md with complete gap analysis for each paper. Identified
-the core research gap that justifies the project. Ready to run
-Google Scholar searches this afternoon for 6–8 more papers.
+Read and fully annotated all 4 core reference papers. Ran 6 Google
+Scholar queries and found 7 additional papers. After verification,
+5 were accepted and 2 rejected (1 unverifiable, 1 low relevance).
+references.md now has 9 fully annotated papers with gap analysis.
+Identified the core research gap. Day 1 complete.
+
+**Papers found and verified today:**
+- [5] Bach et al. (2023) — Anchoring bias mitigation in clinical AI,
+  CHI conference — HIGH relevance
+- [6] Rosbach et al. (2026) — Automation bias and anchoring in
+  pathology AI — MEDIUM relevance
+- [7] Qazi et al. (2026) — Automation bias in LLM-assisted diagnosis,
+  NEJM AI RCT — HIGH relevance
+- [8] Newman-Toker (2013) — Real case of premature closure causing
+  missed cancer diagnosis — use in Introduction only
+- [9] Pereira (2025) — Smart-Doc Master's thesis, FEUP Porto —
+  HIGH relevance, closest competitor. MUST READ full PDF before Week 7.
+
+**Papers rejected:**
+- Sanchez paper: no DOI, not indexed, cannot verify — rejected
+- Loomis et al. 2024: low relevance, no AI component — skipped
 
 **The single most important thing I learned from the papers:**
-Katarci & Topalli (2025) reviewed 10 virtual patient systems published
-between 2021–2025 and confirmed that NONE of them detect cognitive
-bias during the consultation. Every single system only checks if the
-final diagnosis is correct. This means my project is doing something
-genuinely new, not something that already exists under a different name.
+Katarci & Topalli (2025) reviewed 10 virtual patient systems (2021–2025)
+and confirmed NONE detect cognitive bias during the consultation.
+Every system checks only if the final diagnosis is correct.
+This directly justifies why this project exists.
 
-**Key insight — the theory-to-implementation gap:**
-Greengrass (2026) explicitly states that an AI system detecting
-"behavioural markers of premature closure" would be valuable, and
-even describes what that would look like (detecting rapid narrowing
-of differential diagnosis, failure to integrate discordant findings).
-But he does not build it. My project builds it. This is a strong
-justification for the project that I can quote directly in my report.
+**Second most important finding:**
+The Qazi et al. NEJM AI RCT (2026) showed that even physicians who
+completed 20-hour AI-literacy training still suffered automation bias
+from erroneous LLM suggestions. If trained physicians cannot resist
+bias with AI, then training systems must actively develop critical
+reasoning — which is exactly what the Socratic feedback engine does.
 
-**One decision I made and why:**
-I am targeting three bias types (anchoring, premature closure,
-confirmation bias) rather than all six that Greengrass lists. Reason:
-these three are the most clearly operationalizable as behavioral
-patterns in a text-based question-asking interface. The other three
-(availability bias, overconfidence, representativeness) require more
-contextual knowledge about the user's background and experience
-that I cannot reliably detect from question text alone.
+**Critical alert — closest competitor found:**
+Bruno de Sena Pereira's 2025 FEUP Master's thesis "Smart-Doc:
+AI-Powered Medical Education through Diagnostic Interactions" is
+almost the same project title. MUST download and read the full PDF
+before writing the final report. If Smart-Doc does bias detection,
+this project must clearly differentiate its approach.
+PDF: https://repositorio-aberto.up.pt/bitstream/10216/170910/2/749584.pdf
+
+**Key insight — theory-to-implementation gap:**
+Greengrass (2026) explicitly states that AI detecting "behavioural
+markers of premature closure" would be valuable and describes exactly
+what that looks like. But he builds nothing. This project builds it.
+This is the clearest possible justification for the project.
+
+**One decision made today and why:**
+Targeting only 3 bias types (anchoring, premature closure, confirmation
+bias) not all 6 Greengrass lists. Reason: these 3 are operationalizable
+as text-based behavioral patterns. The other 3 (availability bias,
+overconfidence, representativeness) require background knowledge about
+the user that cannot be reliably inferred from question text alone.
+
+**Design constraint learned from Bach et al. (2023):**
+Clinicians found bias mitigation frustrating when it interrupted their
+workflow. This means bias feedback in this project must appear AFTER
+the consultation, not during it. Mid-consultation interruptions will
+feel intrusive and may be ignored. Post-session Socratic feedback
+avoids this problem entirely.
 
 **What I am most uncertain about going into Day 2:**
-Whether my 5 case designs will produce reliable bias detection.
-If a case's anchor trap is too obvious (everyone guesses the right
-diagnosis early), there is nothing to detect. If it is too hard,
-users will be confused rather than biased. The case design quality
-is the most important variable in the whole project.
+Whether the 5 case designs will produce reliable bias detection.
+If an anchor trap is too obvious, no one anchors and there is nothing
+to detect. If it is too subtle, users will be confused rather than
+biased. The case design quality is the single most important variable
+in the whole project.
 
-**One thing I would do differently if starting over:**
-I would have read these four papers more carefully before our
-initial project scoping conversation, because Greengrass (2026) alone
-would have immediately told me exactly what my theoretical framework
-should be. I could have avoided some of the early confusion about
-scope.
+**One thing I would do differently:**
+Read Greengrass (2026) before the initial project scoping conversation.
+It alone provides the complete theoretical framework and even identifies
+the exact gap this project fills. Could have saved hours of discussion.
+
+**End of day commit message:**
+"Day 1 complete: references.md with 9 verified papers, journal.md
+started, Day 1 entry complete"
 
 ---
 
 ## Day 2 — May 12, 2026
 ## (Fill in at end of day)
+
+**Template — answer these 5 questions:**
+1. What did I complete today?
+2. Which of the 5 cases took the longest to design and why?
+3. One design decision I made (e.g. why I chose a specific anchor trap)
+4. What am I most uncertain about going into Day 3?
+5. Did I identify any problem with the case designs that I need to fix?
 
 ---
 
