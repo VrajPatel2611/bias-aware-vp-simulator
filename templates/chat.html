@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consultation — {{ case.title }}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+
+    <div class="case-header">
+      <h2>{{ case.title }}</h2>
+      <p><strong>Situation:</strong> {{ case.patient_intro }}</p>
+    </div>
+
+    <div id="chat-box">
+      <div class="msg patient">
+        <strong>Patient:</strong>
+        Hello, I have come because I have not been feeling well.
+      </div>
+    </div>
+
+    <div id="question-counter">
+      Questions asked: <span id="q-count">0</span>
+    </div>
+
+    <div class="input-row">
+      <input
+        type="text"
+        id="user-input"
+        placeholder="Ask the patient a question..."
+        autocomplete="off"
+      >
+      <button onclick="sendMessage()" id="ask-btn">Ask</button>
+    </div>
+
+    <hr class="divider">
+
+    <div class="conclude-area">
+      <p>When you are ready, enter your diagnosis below:</p>
+      <input
+        type="text"
+        id="diagnosis-input"
+        placeholder="Enter your diagnosis..."
+      >
+      <button onclick="submitDiagnosis()" id="conclude-btn">
+        Submit Diagnosis and Get Feedback
+      </button>
+    </div>
+
+    <div id="feedback-area" style="display:none"></div>
+
+  </div>
+  <script src="/static/chat.js"></script>
+</body>
+</html>

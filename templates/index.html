@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Virtual Patient Simulator</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Virtual Patient Simulator</h1>
+    <p class="subtitle">
+      Select a clinical case to begin your consultation.
+      Ask the patient questions and submit your diagnosis when ready.
+    </p>
+
+    <div class="case-grid">
+      {% for case in cases %}
+      <div class="case-card">
+        <h3>{{ case.title }}</h3>
+        <p>{{ case.intro }}</p>
+        <a href="/start/{{ case.id }}" class="btn">Begin Consultation</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <script src="/static/chat.js"></script>
+</body>
+</html>
