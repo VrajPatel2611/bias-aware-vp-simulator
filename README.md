@@ -3,8 +3,8 @@
 A web-based clinical reasoning training tool for medical students.  
 You interview a virtual patient, order investigations, perform examinations, submit a diagnosis — then receive detailed Socratic feedback on your reasoning process, not just whether you were right or wrong.
 
-> **B.Tech Summer Internship 2026 — DA-IICT**  
-> Student: Roll No. 202301408 · Mentor: Abhishek Gupta · Area: Machine Learning
+> **B.Tech Summer Internship 2026 — DAU (Dhirubhai Ambani University)  
+> Student: Roll No. 202301408(Vraj Patel) and 202301114(Yogesh Bagotia) · Mentor: Abhishek Gupta · Area: Machine Learning
 
 ---
 
