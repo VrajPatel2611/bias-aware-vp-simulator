@@ -216,6 +216,36 @@ TOPIC_KEYWORDS = {
         "playing", "limited", "avoiding", "stopped",
         "cannot", "affected school", "keeping up", "impact",
     ],
+
+    # ── Case 2 (PE): travel history + leg/DVT symptoms ────────────
+    "travel_history": [
+        "flight", "flew", "plane", "airport", "travel", "travelled",
+        "holiday", "trip", "abroad", "long journey", "long haul",
+        "car journey", "sitting long", "immobile", "immobility",
+        "dubai", "recently travel", "bus journey", "train journey",
+    ],
+    "leg_symptoms": [
+        "leg", "calf", "legs", "swelling", "swollen", "dvt",
+        "deep vein", "leg pain", "calf pain", "calf swell",
+        "leg swell", "clot in leg", "popliteal", "calf ache",
+        "leg aching", "tight calf", "leg oedema",
+    ],
+
+    # ── Case 5 (DKA): polydipsia/polyuria + weight loss ───────────
+    "thirst_polyuria": [
+        "thirst", "thirsty", "drinking more", "polydipsia",
+        "urinating more", "peeing more", "polyuria", "passing more",
+        "going toilet more", "drinking lots", "excess thirst",
+        "excessive thirst", "drinking water lots", "waking at night",
+        "nocturia", "how much water", "frequency urination",
+        "using toilet a lot", "drink a lot",
+    ],
+    "weight_history": [
+        "weight", "lost weight", "losing weight", "weight loss",
+        "thinner", "clothes", "lost kg", "weight change",
+        "lighter", "heavier", "gaining weight", "weight going",
+        "noticed weight",
+    ],
 }
 
 
@@ -237,11 +267,27 @@ def create_session(case_id):
         "question_count": 0,
         "questions_asked": [],      # list of all user message strings
         "topics_covered": [],       # list of topic names detected so far
+        "exams_performed": [],      # list of examination keys performed
+        "investigations_ordered": [],  # list of investigation keys ordered
         "early_diagnosis": None,    # if user mentions diagnosis mid-consult
         "diagnosis_submitted": None,  # final diagnosis string from /conclude
         "start_time": datetime.utcnow().isoformat(),
         "end_time": None,
     }
+
+
+def record_exam(session, exam_key):
+    """Records an examination performed (deduplicated). Returns session."""
+    if exam_key not in session["exams_performed"]:
+        session["exams_performed"].append(exam_key)
+    return session
+
+
+def record_investigation(session, investigation_key):
+    """Records an investigation ordered (deduplicated). Returns session."""
+    if investigation_key not in session["investigations_ordered"]:
+        session["investigations_ordered"].append(investigation_key)
+    return session
 
 
 def update_session(session, user_message):
@@ -353,6 +399,8 @@ def get_session_summary(session, case_config):
         "topics_required_count": len(required),
         "coverage_percent": coverage_percent,
         "topics_missed": [t.replace("_", " ") for t in topics_missed],
+        "exams_performed_count": len(session.get("exams_performed", [])),
+        "investigations_ordered_count": len(session.get("investigations_ordered", [])),
         "diagnosis_given": session["diagnosis_submitted"],
         "time_taken_seconds": time_taken,
     }

@@ -1,20 +1,23 @@
 """
 feedback_generator.py
 ---------------------
-Generates Socratic feedback using the Gemini API based on
-detected cognitive biases from a consultation session.
+Generates feedback after a consultation, combining:
+  - cognitive-bias detection (bias_detector.py)
+  - clinical evaluation: diagnosis correctness, exam & investigation coverage
+    (clinical_evaluator.py)
 
-Key rules:
-  - NEVER reveal the correct diagnosis
-  - NEVER directly tell the student they were wrong
-  - NEVER use the words "bias", "anchoring", "premature closure",
-    or "confirmation bias" in the feedback
-  - ALWAYS ask Socratic questions that prompt reflection
-  - Falls back to rule-based feedback if Gemini call fails
+Feedback philosophy (Sprint 3):
+  - If the diagnosis is CORRECT  → acknowledge it, then coach the process
+    gaps ("right answer — but here's how to get there more safely").
+  - If PARTIAL / ANCHORED / OTHER → Socratic redirect, without revealing
+    the answer outright.
+  - Never use the words "bias", "anchoring", "premature closure",
+    "confirmation bias".
+  - Always produce something useful even if the API fails (rule-based
+    fallback).
 
-Uses: google-genai library (NEW — not deprecated google-generativeai)
-Model: gemini-2.5-flash
-Evaluators: medical students (reflected in vocabulary level)
+Uses: google-genai (NEW library). Model: gemini-2.5-flash.
+Evaluators: medical students (clinical vocabulary is appropriate).
 """
 
 import os
@@ -24,202 +27,187 @@ from google.genai import types
 
 load_dotenv()
 
-# Initialize Gemini client using NEW google-genai library
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 GEMINI_MODEL = "gemini-2.5-flash"
 
-# System instruction for the Gemini feedback call
-_FEEDBACK_SYSTEM_INSTRUCTION = """You are a medical education tutor providing \
-Socratic feedback to a medical student after a clinical history-taking exercise \
-with a virtual patient. Your role is to prompt deeper reflection.
+_FEEDBACK_SYSTEM_INSTRUCTION = """You are a clinical tutor giving feedback to a \
+medical student after a virtual-patient history, examination and investigation \
+exercise.
 
 STRICT RULES:
-1. NEVER reveal the correct diagnosis.
-2. NEVER say the student was wrong or made an error.
-3. NEVER use the words "bias", "anchoring", "premature closure", or \
-"confirmation bias" — these are clinical education terms, not words to use \
-directly in feedback.
-4. ONLY ask open-ended questions that lead the student to reconsider \
-their reasoning.
-5. Make every question specific to this case and this student's actual \
-behaviour during the consultation.
-6. Use appropriate clinical vocabulary — the user is a medical student.
-7. Keep to exactly 3-4 Socratic questions. One question per line.
-8. Do not number the questions. Do not add any preamble or closing statement."""
+1. If told the student's diagnosis was CORRECT: open with genuine, specific \
+praise, THEN coach the gaps in their process (history, examination or \
+investigations they skipped).
+2. If the diagnosis was NOT correct: do NOT state the right answer. Ask \
+Socratic questions that steer them toward the body system or information they \
+neglected.
+3. Never use the words "bias", "anchoring", "premature closure" or \
+"confirmation bias".
+4. Be specific to THIS patient and THIS student's actual actions. Use proper \
+clinical vocabulary — they are a medical student.
+5. Output 3-5 short lines. One coaching point or question per line. No \
+numbering, no preamble, no sign-off."""
 
 
-def generate_feedback(bias_results, session, case_config):
+def generate_feedback(bias_results, clinical_eval, session, case_config):
     """
-    Main entry point for feedback generation.
-    Takes bias detection results and returns Socratic feedback messages.
+    Main entry point.
 
     Args:
-        bias_results (dict): Output from detect_all_biases().
-        session (dict): Completed session dict.
-        case_config (dict): Case definition from cases.py.
+        bias_results (dict):   output of detect_all_biases().
+        clinical_eval (dict):  output of evaluate_clinical().
+        session (dict):        completed session.
+        case_config (dict):    case definition.
 
     Returns:
-        list: List of feedback message strings (3-4 messages).
-              Returns positive feedback if no biases detected.
+        list[str]: 3-5 feedback lines.
     """
-    # Collect which biases were detected
-    detected_biases = []
-    for bias_name, result in bias_results.items():
-        if result["detected"]:
-            detected_biases.append({
-                "name": bias_name,
-                "score": result["score"],
-                "reason": result["reason"],
-                "evidence": result["evidence"],
-            })
+    detected_biases = [
+        {"name": name, "reason": r["reason"]}
+        for name, r in bias_results.items() if r["detected"]
+    ]
 
-    # If no biases detected, return positive feedback
-    if not detected_biases:
-        return [
-            "Well done — your consultation showed thorough and balanced reasoning.",
-            "You covered the key history areas and explored multiple diagnostic "
-            "possibilities before reaching a conclusion.",
-            "Consider: what single additional investigation or history point "
-            "would best confirm your working diagnosis?",
-            "Reflect on whether any clue you uncovered could point toward an "
-            "alternative diagnosis that should remain on your differential.",
-        ]
+    prompt = build_feedback_prompt(
+        detected_biases, clinical_eval, session, case_config
+    )
 
-    # Build the feedback prompt
-    prompt = build_feedback_prompt(detected_biases, session, case_config)
-
-    # Call Gemini API — fall back to rule-based if API fails
     try:
         response = client.models.generate_content(
             model=GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 system_instruction=_FEEDBACK_SYSTEM_INSTRUCTION,
-                max_output_tokens=400,
+                max_output_tokens=450,
                 temperature=0.7,
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
             ),
         )
-        feedback_text = response.text
-
+        feedback_text = response.text or ""
+        lines = [l.strip(" -•\t") for l in feedback_text.split("\n")
+                 if len(l.strip()) > 10]
+        if lines:
+            return lines[:5]
+        # empty response → fall through to rule-based
     except Exception as e:
-        # Gemini call failed — use rule-based fallback
         print(f"Gemini feedback call failed: {e}")
-        feedback_text = build_fallback_feedback(detected_biases, case_config)
 
-    # Split into individual feedback messages (one per line)
-    feedback_messages = [
-        line.strip()
-        for line in feedback_text.split("\n")
-        if len(line.strip()) > 10
-    ]
-
-    return feedback_messages[:4]  # cap at 4 messages
+    return build_fallback_feedback(detected_biases, clinical_eval, case_config)
 
 
-def build_feedback_prompt(detected_biases, session, case_config):
-    """
-    Constructs the text prompt sent to Gemini for feedback generation.
-    Contains enough context for Gemini to generate relevant Socratic
-    questions without revealing the correct diagnosis.
+def build_feedback_prompt(detected_biases, clinical_eval, session, case_config):
+    """Constructs the Gemini prompt with full clinical context."""
+    dx   = clinical_eval["diagnosis"]
+    exam = clinical_eval["examinations"]
+    inv  = clinical_eval["investigations"]
 
-    Args:
-        detected_biases (list): List of bias dicts that were detected.
-        session (dict): Completed session dict.
-        case_config (dict): Case definition including correct_diagnosis
-                            (used as context for Gemini but never shown to user).
+    bias_lines = "".join(
+        f"\n- {b['name'].replace('_', ' ')}: {b['reason']}"
+        for b in detected_biases
+    ) or "\n- (no notable patterns)"
 
-    Returns:
-        str: Complete prompt string ready to send to Gemini.
-    """
-    # Build bias description section
-    bias_descriptions = ""
-    for bias in detected_biases:
-        bias_descriptions += f"\n- {bias['name'].replace('_', ' ')}: {bias['reason']}"
+    topics_str = ", ".join(
+        t.replace("_", " ") for t in session.get("topics_covered", [])
+    ) or "none"
 
-    # Human-readable topics covered
-    topics_str = (
-        ", ".join(session.get("topics_covered", [])).replace("_", " ")
-        or "none detected"
-    )
+    correctness_note = {
+        "correct":  "The student's diagnosis is CORRECT.",
+        "partial":  "The student's diagnosis is PARTIALLY correct / non-specific.",
+        "anchored": "The student's diagnosis is INCORRECT — they settled on the "
+                    "obvious trap and missed the true cause.",
+        "other":    "The student's diagnosis is off-target.",
+    }[dx["verdict"]]
 
-    prompt = (
-        f"A medical student has just completed a virtual patient "
-        f"consultation exercise.\n\n"
-        f"CASE CONTEXT (do not reveal any of this to the student):\n"
+    return (
+        "A medical student has completed a virtual-patient consultation.\n\n"
+        "CASE CONTEXT (never reveal the diagnosis to the student):\n"
         f"Patient: {case_config['patient_intro']}\n"
-        f"Correct diagnosis: {case_config['correct_diagnosis']}\n"
-        f"Anchor trap in this case: {case_config['anchor_topic']}\n\n"
-        f"STUDENT BEHAVIOUR:\n"
-        f"- Total questions asked: {session['question_count']}\n"
-        f"- Clinical history topics covered: {topics_str}\n"
-        f"- Diagnosis submitted: "
-        f"{session.get('diagnosis_submitted', 'not submitted')}\n\n"
-        f"REASONING PATTERNS DETECTED:\n"
-        f"{bias_descriptions}\n\n"
-        f"TASK:\n"
-        f"Generate 3-4 Socratic questions to help this medical student reflect "
-        f"on their clinical reasoning. Do not reveal the correct diagnosis. "
-        f"Do not say the student was wrong. Do not use bias terminology. "
-        f"Ask questions that naturally lead the student to reconsider what they "
-        f"may have missed. Make each question specific to this patient's "
-        f"presentation and this student's actual behaviour during the "
-        f"consultation. One question per line, no numbering."
+        f"True diagnosis: {case_config['correct_diagnosis']}\n"
+        f"The common trap in this case: {case_config['anchor_topic']}\n\n"
+        "STUDENT'S PERFORMANCE:\n"
+        f"- Diagnosis submitted: {session.get('diagnosis_submitted')}\n"
+        f"- {correctness_note}\n"
+        f"- History topics covered: {topics_str}\n"
+        f"- KEY examinations they SKIPPED: "
+        f"{', '.join(exam['key_missed']) or 'none — all key exams done'}\n"
+        f"- KEY investigations they SKIPPED: "
+        f"{', '.join(inv['key_missed']) or 'none — all key tests done'}\n"
+        f"- Low-value tests they ordered: "
+        f"{', '.join(inv['low_value_ordered']) or 'none'}\n"
+        f"- Reasoning patterns noted:{bias_lines}\n\n"
+        "TASK:\n"
+        "Write 3-5 short lines of feedback following your rules. "
+        "If the diagnosis is correct, praise it specifically and then point out "
+        "the most important examination or investigation they should still have "
+        "done to confirm it or stay safe. If it is not correct, ask Socratic "
+        "questions guiding them to what they overlooked — without naming the "
+        "diagnosis."
     )
 
-    return prompt
 
+def build_fallback_feedback(detected_biases, clinical_eval, case_config):
+    """Rule-based feedback used when the API is unavailable."""
+    dx   = clinical_eval["diagnosis"]
+    exam = clinical_eval["examinations"]
+    inv  = clinical_eval["investigations"]
+    msgs = []
 
-def build_fallback_feedback(detected_biases, case_config):
-    """
-    Returns rule-based feedback if Gemini API call fails.
-    Ensures system gives useful output even without internet connection.
+    # 1. Open according to diagnosis verdict
+    if dx["verdict"] == "correct":
+        msgs.append(
+            "Correct diagnosis — well reasoned. Now make sure your process is "
+            "as sound as your conclusion."
+        )
+    elif dx["verdict"] == "partial":
+        msgs.append(
+            "You are on the right track, but your diagnosis is non-specific. "
+            "What single test or finding would let you name the exact cause?"
+        )
+    elif dx["verdict"] == "anchored":
+        msgs.append(
+            f"You settled on a {case_config.get('anchor_topic', 'familiar')} "
+            f"explanation. Which other body system could fully account for this "
+            f"presentation?"
+        )
+    else:
+        msgs.append(
+            "Before finalising, revisit the history — which body system best "
+            "explains the whole picture rather than just part of it?"
+        )
 
-    Args:
-        detected_biases (list): List of bias dicts that were detected.
-        case_config (dict): Case definition from cases.py.
+    # 2. Key examination gap
+    if exam["key_missed"]:
+        msgs.append(
+            f"You did not examine: {', '.join(exam['key_missed'])}. "
+            f"How might that have changed your assessment?"
+        )
 
-    Returns:
-        str: Newline-separated feedback messages as a single string.
-    """
-    messages = []
+    # 3. Key investigation gap
+    if inv["key_missed"]:
+        msgs.append(
+            f"You concluded without these key investigations: "
+            f"{', '.join(inv['key_missed'])}. What were you hoping to rule in "
+            f"or out?"
+        )
 
-    for bias in detected_biases:
+    # 4. Over-ordering
+    if inv["low_value_ordered"]:
+        msgs.append(
+            f"Some tests you ordered ({', '.join(inv['low_value_ordered'])}) "
+            f"added little here — consider what each test would actually change."
+        )
 
-        if bias["name"] == "anchoring":
-            messages.append(
-                f"You focused significantly on {case_config['anchor_topic']} "
-                f"as a cause — what other diagnoses could produce this exact "
-                f"constellation of symptoms?"
-            )
-            messages.append(
-                "Did you ask about all the patient's regular medications? "
-                "Pharmacological causes are among the most commonly missed "
-                "aetiologies in primary care presentations."
-            )
+    # 5. A reasoning nudge if biases were detected and we have room
+    if detected_biases and len(msgs) < 5:
+        msgs.append(
+            "What piece of information, if you had found it, would have made you "
+            "reconsider your diagnosis entirely — and did you look for it?"
+        )
 
-        elif bias["name"] == "premature_closure":
-            messages.append(
-                "You reached a diagnosis relatively early in the history. "
-                "What additional clinical information might shift your "
-                "differential diagnosis or change your management plan?"
-            )
-            if bias["evidence"]:
-                missed = bias["evidence"][0]
-                messages.append(
-                    f"You did not ask about {missed}. "
-                    f"How might that information affect your assessment "
-                    f"of this patient?"
-                )
+    # If everything was excellent
+    if len(msgs) == 1 and dx["verdict"] == "correct":
+        msgs.append(
+            "Your history, examination and investigations were thorough and "
+            "well targeted. Excellent clinical reasoning."
+        )
 
-        elif bias["name"] == "confirmation_bias":
-            messages.append(
-                "Were there questions you decided not to ask because you "
-                "already felt confident in your working diagnosis?"
-            )
-            messages.append(
-                "What single piece of clinical information, if present, "
-                "would make you completely reconsider this diagnosis — "
-                "and did you specifically ask about it?"
-            )
-
-    return "\n".join(messages[:4])
+    return msgs[:5]
