@@ -87,7 +87,7 @@ def detect_anchoring(session, case_config):
     if total_questions >= 4:
         concentration = anchor_question_count / total_questions
         if concentration > 0.60:
-            detected_A1 = True
+            detected_A1 = True 
             score_A1 = round(concentration, 2)
 
     # Rule A2: 3+ anchor questions with zero alternative exploration
